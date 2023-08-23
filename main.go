@@ -11,9 +11,42 @@ import (
 	"os"
 )
 
-type WebhookContext struct {
+type Context struct {
 	a *okx.OkApi
 	c *gin.Context
+}
+
+func handleBalance(c *Context) error {
+	bal, err := c.a.GetBalance("USDT")
+	if err != nil {
+		return err
+	}
+
+	writeJSON(c.c, http.StatusOK, []string{fmt.Sprintf("%f", bal)})
+	return nil
+}
+
+func handleBidAsk(c *Context) error {
+	bid, ask, err := c.a.GetLimitSwapPrice(c.c.Param("ticker"))
+	if err != nil {
+		return err
+	}
+
+	writeJSON(c.c, http.StatusOK, []float64{
+		bid,
+		ask,
+	})
+	return nil
+}
+
+func handleInstruments(c *Context) error {
+	instruments, err := c.a.GetInstruments(c.c.Param("instType"))
+	if err != nil {
+		return err
+	}
+
+	writeJSON(c.c, http.StatusOK, instruments)
+	return nil
 }
 
 func main() {
@@ -25,42 +58,24 @@ func main() {
 	config := cors.DefaultConfig()
 	config.AllowAllOrigins = true
 
-	bal, err := a.GetBalance("USDT")
-	if err != nil {
-		fmt.Println(err)
-	}
-
 	r.Use(cors.New(config))
 	r.Use(static.Serve("/", static.LocalFile("./static", true)))
 	r.Static("/css", "public/css")
 	r.Static("/js", "public/js")
 
-	r.POST("/webhook", makeWebhookHttpAPIFunc(a, handleWebhook))
-	r.GET("/api/balance", func(c *gin.Context) {
-		c.JSON(200, []string{
-			fmt.Sprintf("%f", bal),
-		})
-	})
-	r.GET("/api/ticker", func(c *gin.Context) {
-		buy, sell, err := a.GetLimitSwapPrice("BTC-USDT-SWAP")
-		if err != nil {
-			writeJSON(c, http.StatusInternalServerError, err)
-		}
-
-		writeJSON(c, http.StatusOK, []float64{
-			buy,
-			sell,
-		})
-	})
+	r.POST("/webhook", makeAPIFunc(a, handleWebhook))
+	r.GET("/api/balance", makeAPIFunc(a, handleBalance))
+	r.GET("/api/bidask/:ticker", makeAPIFunc(a, handleBidAsk))
+	r.GET("/api/instruments/:instType", makeAPIFunc(a, handleInstruments))
 
 	r.Run(":" + os.Getenv("PORT"))
 }
 
-type webhookFunc func(c *WebhookContext) error
+type apiFunc func(c *Context) error
 
-func makeWebhookHttpAPIFunc(a *okx.OkApi, fn webhookFunc) gin.HandlerFunc {
+func makeAPIFunc(a *okx.OkApi, fn apiFunc) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ctx := &WebhookContext{
+		ctx := &Context{
 			a: a,
 			c: c,
 		}
