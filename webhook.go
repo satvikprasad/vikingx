@@ -38,7 +38,7 @@ type WebhookRequest struct {
 	} `json:"strategy"`
 }
 
-func handleWebhook(c *WebhookContext) error {
+func handleWebhook(c *Context) error {
 	godotenv.Load(".env")
 
 	t := WebhookRequest{}
