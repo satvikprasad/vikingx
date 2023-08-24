@@ -1,22 +1,7 @@
-<template>
-    <header>
-    </header>
-
-    <main>
-        {{balance}} USDT in account.
-        <div v-for="[ticker, bidask] in bidasks">
-            <h3>{{ticker}}</h3>
-            Bid: {{bidask.bid}}
-            Ask: {{bidask.ask}}
-        </div>
-    </main>
-</template>
-
-<style scoped>
-</style>
-
 <script lang="ts">
-    import { ref } from 'vue'
+    import BidAskCard from './BidAskCard.vue'
+
+    import { inject, ref } from 'vue'
     import type { Ref } from 'vue'
 
     interface BidAsk {
@@ -80,15 +65,14 @@
                 await fetch('/api/balance')
                     .then(async (res) => {
                         const data = await res.json()
-                        console.log(data)
                         this.balance = data[0]
                     }).catch((error) => {return error})
             },
             async fetchBidAsks() {
                 for (let i = 0; i < this.instruments.length; i++) {
-                    const instrument = this.instruments[i];
-                    await fetch('/api/bidask/' + instrument.instId)
-                        .then(async (res) => {
+        const instrument = this.instruments[i];
+        await fetch('/api/bidask/' + instrument.instId)
+        .then(async (res) => {
                             const data = await res.json()
                             console.log(data)
                             this.bidasks.set(instrument.instId, {
@@ -102,9 +86,14 @@
                 await fetch('/api/instruments/SWAP')
                     .then(async (res) => {
                         const data: Instrument[] = await res.json()
-                        this.instruments = data.slice(0, 10)
+                        this.instruments = data.filter((inst) => {
+                            return inst.settleCcy == "USDT" || inst.baseCcy == "USDT" 
+                        }).slice(0, 5)
                     })
             }
+        },
+        components: {
+            BidAskCard
         },
         mounted: function() {
             this.bidAskTimer = setInterval(() => {
@@ -113,3 +102,21 @@
         }
     }
 </script>
+
+<template>
+    <header>
+        <div class="container mx-auto">
+            <h1 class="font-bold  text-xl text-center antialiased">{{balance}} USDT</h1>
+        </div>
+    </header>
+
+    <main class="bg-gradient-to-b from-pink-200 to-pink-50">
+        <div class="flex flex-row p-2 space-x-2">
+            <BidAskCard v-for="[ticker, bidask] in bidasks" :ticker="ticker" :bidask="bidask" />
+        </div>
+    </main>
+</template>
+
+<style scoped>
+</style>
+
