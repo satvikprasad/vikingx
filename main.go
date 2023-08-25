@@ -11,6 +11,8 @@ import (
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/satvikprasad/vikingx/db"
+	"github.com/satvikprasad/vikingx/models"
 	"github.com/satvikprasad/vikingx/okx"
 )
 
@@ -32,19 +34,41 @@ type WebhookRequest struct {
 	Strategy struct {
 		PositionSize           int     `json:"position_size"`
 		OrderAction            string  `json:"order_action"`
-		OrderContracts         int     `json:"order_contracts"`
+		OrderContracts         float64 `json:"order_contracts"`
 		OrderPrice             float64 `json:"order_price"`
 		OrderID                string  `json:"order_id"`
 		MarketPosition         string  `json:"market_position"`
-		MarketPositionSize     int     `json:"market_position_size"`
+		MarketPositionSize     float64 `json:"market_position_size"`
 		PrevMarketPosition     string  `json:"prev_market_position"`
-		PrevMarketPositionSize int     `json:"prev_market_position_size"`
+		PrevMarketPositionSize float64 `json:"prev_market_position_size"`
 	} `json:"strategy"`
 }
 
 type Context struct {
-	a *okx.OkApi
-	c *gin.Context
+	a  *okx.OkApi
+	db *db.DbInstance
+	c  *gin.Context
+}
+
+func handleCreateTrade(c *Context) error {
+	trade := new(models.Trade)
+	if err := c.c.BindJSON(trade); err != nil {
+		return err
+	}
+
+	c.db.Db.Create(&trade)
+
+	writeJSON(c.c, http.StatusCreated, trade)
+	return nil
+}
+
+func handleTrades(c *Context) error {
+	trades := []models.Trade{}
+
+	c.db.Db.Find(&trades)
+
+	writeJSON(c.c, http.StatusOK, trades)
+	return nil
 }
 
 func handleBalance(c *Context) error {
@@ -83,6 +107,11 @@ func handleInstruments(c *Context) error {
 func main() {
 	godotenv.Load(".env")
 
+	db, err := db.NewDB()
+	if err != nil {
+		fmt.Printf("Error creating database: %s", err)
+	}
+
 	a := okx.NewOkApi(true, ".env")
 	r := gin.Default()
 
@@ -94,21 +123,24 @@ func main() {
 	r.Static("/css", "public/css")
 	r.Static("/js", "public/js")
 
-	r.POST("/webhook", makeAPIFunc(a, handleWebhook))
-	r.GET("/api/balance", makeAPIFunc(a, handleBalance))
-	r.GET("/api/bidask/:ticker", makeAPIFunc(a, handleBidAsk))
-	r.GET("/api/instruments/:instType", makeAPIFunc(a, handleInstruments))
+	r.POST("/webhook", makeAPIFunc(a, db, handleWebhook))
+	r.POST("/api/createTrade", makeAPIFunc(a, db, handleCreateTrade))
+	r.GET("/api/trades", makeAPIFunc(a, db, handleTrades))
+	r.GET("/api/balance", makeAPIFunc(a, db, handleBalance))
+	r.GET("/api/bidask/:ticker", makeAPIFunc(a, db, handleBidAsk))
+	r.GET("/api/instruments/:instType", makeAPIFunc(a, db, handleInstruments))
 
 	r.Run(":" + os.Getenv("PORT"))
 }
 
 type apiFunc func(c *Context) error
 
-func makeAPIFunc(a *okx.OkApi, fn apiFunc) gin.HandlerFunc {
+func makeAPIFunc(a *okx.OkApi, db *db.DbInstance, fn apiFunc) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx := &Context{
-			a: a,
-			c: c,
+			a:  a,
+			db: db,
+			c:  c,
 		}
 		if err := fn(ctx); err != nil {
 			writeJSON(c, http.StatusInternalServerError,
@@ -156,8 +188,6 @@ func handleWebhook(c *Context) error {
 			fmt.Println(err)
 			return fmt.Errorf("Error placing order: %s", err)
 		}
-
-		writeJSON(c.c, http.StatusOK, "Order placed")
 	case false:
 		ticker, err := c.a.ConvertTickerName("SPOT", t.Ticker)
 		if err != nil {
@@ -170,11 +200,21 @@ func handleWebhook(c *Context) error {
 			fmt.Println(err)
 			return fmt.Errorf("Error placing order: %s", err)
 		}
-
-		writeJSON(c.c, http.StatusOK, "Order placed")
 	default:
 		return fmt.Errorf("Could not decode ticker")
 	}
 
+	trade := models.Trade{
+		Ticker:                 t.Ticker,
+		Side:                   t.Strategy.OrderAction,
+		Size:                   t.Strategy.OrderContracts,
+		Price:                  t.Strategy.OrderPrice,
+		MarketPositionSize:     t.Strategy.MarketPositionSize,
+		PrevMarketPositionSize: t.Strategy.PrevMarketPositionSize,
+	}
+
+	c.db.Db.Create(&trade)
+
+	writeJSON(c.c, http.StatusOK, trade)
 	return nil
 }
