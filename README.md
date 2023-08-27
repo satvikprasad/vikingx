@@ -7,13 +7,15 @@ To build:
 `make build`
 
 .env must contain:
-`WEBHOOK_PHRASE=
+```
+WEBHOOK_PHRASE=
 ACCESS_KEY=
 SECRET_KEY=
 PASSPHRASE=
 PORT=
 DB_USER=
 DB_PASSWORD=
-DB_NAME=`
+DB_NAME=
+```
 
 Have fun.
