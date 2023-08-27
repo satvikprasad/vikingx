@@ -1,0 +1,11 @@
+{{ define "home/instrumentslist.tmpl" }}
+{{ range $value := . }}
+<li class="list-group-item m-2 bg-muted">
+    <p>Ticker: {{ $value.InstID }}</h2>
+    <p>Bid: {{ $value.BidPx }}</p>
+    <p>Bid: {{ $value.AskPx }}</p>
+    <p>24H Volume: {{ $value.VolCcy24H }}</p>
+    <p>Last Traded Px: {{ $value.Last }}</p>
+</li>
+{{ end }}
+{{ end }}

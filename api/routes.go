@@ -3,11 +3,8 @@ package api
 import (
 	"fmt"
 	"net/http"
-	"os"
-	"strings"
 
 	"github.com/gin-contrib/cors"
-	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
 	"github.com/satvikprasad/vikingx/db"
 	"github.com/satvikprasad/vikingx/models"
@@ -22,21 +19,16 @@ type Context struct {
 
 func ListenAndServe(db *db.DbInstance, a *okx.OkApi, port string) {
 	r := gin.Default()
+	r.LoadHTMLGlob("templates/**/*")
 
 	config := cors.DefaultConfig()
 	config.AllowAllOrigins = true
 
 	r.Use(cors.New(config))
-	r.Use(static.Serve("/", static.LocalFile("./static", true)))
-	r.Static("/css", "public/css")
-	r.Static("/js", "public/js")
 
-	r.POST("/api/webhook", makeAPIFunc(a, db, handleWebhook))
-	r.POST("/api/createTrade", makeAPIFunc(a, db, handleCreateTrade))
-	r.GET("/api/trades", makeAPIFunc(a, db, handleTrades))
-	r.GET("/api/balance", makeAPIFunc(a, db, handleBalance))
-	r.GET("/api/bidask/:ticker", makeAPIFunc(a, db, handleBidAsk))
-	r.GET("/api/instruments/:instType", makeAPIFunc(a, db, handleInstruments))
+	createWebhookRoutes(r, a, db)
+	createTemplateRoutes(r, a, db)
+	createApiRoutes(r, a, db)
 
 	r.Run(":" + port)
 }
@@ -95,78 +87,32 @@ func handleInstruments(c *Context) error {
 	return nil
 }
 
-func handleWebhook(c *Context) error {
-	t := WebhookRequest{}
+func createApiRoutes(r *gin.Engine, a *okx.OkApi, db *db.DbInstance) {
+	r.POST("/api/createTrade", makeAPIFunc(a, db, handleCreateTrade))
 
-	if err := c.c.BindJSON(&t); err != nil {
-		return fmt.Errorf("Error binding to json body")
-	}
+	r.GET("/api/trades", makeAPIFunc(a, db, handleTrades))
+	r.GET("/api/balance", makeAPIFunc(a, db, handleBalance))
 
-	if t.Passphrase != os.Getenv("WEBHOOK_PHRASE") {
-		return fmt.Errorf("Error")
-	}
-
-	switch strings.Contains(t.Ticker, ".P") || strings.Contains(t.Ticker, "SWAP") {
-	case true:
-		ticker, err := c.a.ConvertTickerName("SWAP", t.Ticker)
-		if err != nil {
-			return err
-		}
-
-		sz, err := c.a.GetTickerCtSize(t.Ticker)
-		if err != nil {
-			return err
-		}
-
-		if err := c.a.SetLeverage(ticker, 20); err != nil {
-			fmt.Printf("Could not set leverage: %s\n", err)
-		}
-
-		if err := c.a.MarketOrderSwap(ticker, t.Strategy.OrderAction,
-			float64(t.Strategy.OrderContracts)/sz); err != nil {
-			fmt.Println(err)
-			return fmt.Errorf("Error placing order: %s", err)
-		}
-	case false:
-		ticker, err := c.a.ConvertTickerName("SPOT", t.Ticker)
-		if err != nil {
-			fmt.Println(err)
-			return fmt.Errorf("Error decoding ticker info: %s", err)
-		}
-
-		if err := c.a.MarketOrder(ticker, t.Strategy.OrderAction,
-			float64(t.Strategy.OrderContracts)); err != nil {
-			fmt.Println(err)
-			return fmt.Errorf("Error placing order: %s", err)
-		}
-	default:
-		return fmt.Errorf("Could not decode ticker")
-	}
-
-	trade := models.Trade{
-		Ticker:                 t.Ticker,
-		Side:                   t.Strategy.OrderAction,
-		Size:                   t.Strategy.OrderContracts,
-		Price:                  t.Strategy.OrderPrice,
-		MarketPositionSize:     t.Strategy.MarketPositionSize,
-		PrevMarketPositionSize: t.Strategy.PrevMarketPositionSize,
-	}
-
-	c.db.Db.Create(&trade)
-
-	writeJSON(c.c, http.StatusOK, trade)
-	return nil
+	r.GET("/api/bidask/:ticker", makeAPIFunc(a, db, handleBidAsk))
+	r.GET("/api/instruments/:instType", makeAPIFunc(a, db, handleInstruments))
 }
 
 type apiFunc func(c *Context) error
 
 func makeAPIFunc(a *okx.OkApi, db *db.DbInstance, fn apiFunc) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if db == nil {
+			writeJSON(c, http.StatusInternalServerError,
+				map[string]string{"error": "Could not initialise database"})
+			return
+		}
+
 		ctx := &Context{
 			a:  a,
 			db: db,
 			c:  c,
 		}
+
 		if err := fn(ctx); err != nil {
 			writeJSON(c, http.StatusInternalServerError,
 				map[string]string{"error": err.Error()})
@@ -177,4 +123,8 @@ func makeAPIFunc(a *okx.OkApi, db *db.DbInstance, fn apiFunc) gin.HandlerFunc {
 func writeJSON(c *gin.Context, code int, v any) {
 	c.Header("Content-Type", "application/json")
 	c.JSON(code, v)
+}
+
+func writeHTML(c *gin.Context, code int, tmpl string, d any) {
+	c.HTML(code, tmpl, d)
 }
