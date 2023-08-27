@@ -88,7 +88,7 @@ func handleInstruments(c *Context) error {
 }
 
 func createApiRoutes(r *gin.Engine, a *okx.OkApi, db *db.DbInstance) {
-	r.POST("/api/createTrade", makeAPIFunc(a, db, handleCreateTrade))
+	r.POST("/api/create-trade", makeAPIFunc(a, db, handleCreateTrade))
 
 	r.GET("/api/trades", makeAPIFunc(a, db, handleTrades))
 	r.GET("/api/balance", makeAPIFunc(a, db, handleBalance))
@@ -123,8 +123,4 @@ func makeAPIFunc(a *okx.OkApi, db *db.DbInstance, fn apiFunc) gin.HandlerFunc {
 func writeJSON(c *gin.Context, code int, v any) {
 	c.Header("Content-Type", "application/json")
 	c.JSON(code, v)
-}
-
-func writeHTML(c *gin.Context, code int, tmpl string, d any) {
-	c.HTML(code, tmpl, d)
 }
