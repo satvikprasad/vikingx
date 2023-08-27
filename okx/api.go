@@ -48,6 +48,30 @@ func NewOkApi(demo bool, envPath string) *OkApi {
 	}
 }
 
+func (a *OkApi) GetTickers(instType string) ([]OkTicker, error) {
+	p := OkRequestParams{
+		Method:      "GET",
+		RequestPath: "/api/v5/market/tickers?instType=" + instType,
+	}
+
+	res, err := a.SendRequest(p)
+	if err != nil {
+		return nil, err
+	}
+
+	tickerRes := &OkTickersResponse{}
+	if err := json.Unmarshal([]byte(res), &tickerRes); err != nil {
+		return nil, err
+	}
+
+	if tickerRes.Code != "0" {
+		return nil, fmt.Errorf("Error getting tickers: %s",
+			tickerRes.Msg)
+	}
+
+	return tickerRes.Data, nil
+}
+
 func (a *OkApi) GetInstruments(instType string) ([]OkInstruments, error) {
 	p := OkRequestParams{
 		Method:      "GET",
