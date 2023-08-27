@@ -2,7 +2,7 @@ package okx
 
 import "time"
 
-type OkBalanceResponse struct {
+type OkxBalanceResponse struct {
 	Code string `json:"code"`
 	Data []struct {
 		AdjEq      string `json:"adjEq"`
@@ -50,14 +50,14 @@ type OkBalanceResponse struct {
 	Msg string `json:"msg"`
 }
 
-type OkDefaultResponse struct {
+type OkxDefaultResponse struct {
 	Code string `json:"code"`
 	Data []any  `json:"data"`
 
 	Msg string `json:"msg"`
 }
 
-type OkOrderResponse struct {
+type OkxOrderResponse struct {
 	Code string `json:"code"`
 	Data []struct {
 		ClOrdID string `json:"clOrdId"`
@@ -73,7 +73,7 @@ type OkOrderResponse struct {
 	OutTime string `json:"outTime"`
 }
 
-type OkLimitPricesResponse struct {
+type OkxLimitPricesResponse struct {
 	Code string `json:"code"`
 	Data []struct {
 		BuyLmt   string `json:"buyLmt"`
@@ -85,19 +85,19 @@ type OkLimitPricesResponse struct {
 	Msg string `json:"msg"`
 }
 
-type OkCandlestickResponse struct {
+type OkxCandlestickResponse struct {
 	Code string     `json:"code"`
 	Msg  string     `json:"msg"`
 	Data [][]string `json:"data"`
 }
 
-type OkInstrumentsResponse struct {
-	Code string          `json:"code"`
-	Msg  string          `json:"msg"`
-	Data []OkInstruments `json:"data"`
+type OkxInstrumentsResponse struct {
+	Code string           `json:"code"`
+	Msg  string           `json:"msg"`
+	Data []OkxInstruments `json:"data"`
 }
 
-type OkInstruments struct {
+type OkxInstruments struct {
 	InstType string `json:"instType"`
 
 	InstID     string `json:"instId"`
@@ -133,12 +133,12 @@ type OkInstruments struct {
 	MaxStopSz    string `json:"maxStopSz"`
 }
 
-type OkCandlestick struct {
+type OkxCandlestick struct {
 	Timestamp              time.Time
 	Open, High, Low, Close float64
 }
 
-type OkTicker struct {
+type OkxTicker struct {
 	InstType  string `json:"instType"`
 	InstID    string `json:"instId"`
 	Last      string `json:"last"`
@@ -157,8 +157,86 @@ type OkTicker struct {
 	Ts        string `json:"ts"`
 }
 
-type OkTickersResponse struct {
-	Code string     `json:"code"`
-	Msg  string     `json:"msg"`
-	Data []OkTicker `json:"data"`
+type OkxTickersResponse struct {
+	Code string      `json:"code"`
+	Msg  string      `json:"msg"`
+	Data []OkxTicker `json:"data"`
+}
+
+type OkxMarkPriceResponse struct {
+	Code string `json:"code"`
+	Msg  string `json:"msg"`
+	Data []struct {
+		InstType string `json:"instType"`
+		InstID   string `json:"instId"`
+		MarkPx   string `json:"markPx"`
+		Ts       string `json:"ts"`
+	} `json:"data"`
+}
+
+type OkxPosition struct {
+	Adl            string `json:"adl"`
+	AvailPos       string `json:"availPos"`
+	AvgPx          string `json:"avgPx"`
+	CTime          string `json:"cTime"`
+	Ccy            string `json:"ccy"`
+	DeltaBS        string `json:"deltaBS"`
+	DeltaPA        string `json:"deltaPA"`
+	GammaBS        string `json:"gammaBS"`
+	GammaPA        string `json:"gammaPA"`
+	Imr            string `json:"imr"`
+	InstID         string `json:"instId"`
+	InstType       string `json:"instType"`
+	Interest       string `json:"interest"`
+	IdxPx          string `json:"idxPx"`
+	UsdPx          string `json:"usdPx"`
+	Last           string `json:"last"`
+	Lever          string `json:"lever"`
+	Liab           string `json:"liab"`
+	LiabCcy        string `json:"liabCcy"`
+	LiqPx          string `json:"liqPx"`
+	MarkPx         string `json:"markPx"`
+	Margin         string `json:"margin"`
+	MgnMode        string `json:"mgnMode"`
+	MgnRatio       string `json:"mgnRatio"`
+	Mmr            string `json:"mmr"`
+	NotionalUsd    string `json:"notionalUsd"`
+	OptVal         string `json:"optVal"`
+	PTime          string `json:"pTime"`
+	Pos            string `json:"pos"`
+	BaseBorrowed   string `json:"baseBorrowed"`
+	BaseInterest   string `json:"baseInterest"`
+	QuoteBorrowed  string `json:"quoteBorrowed"`
+	QuoteInterest  string `json:"quoteInterest"`
+	PosCcy         string `json:"posCcy"`
+	PosID          string `json:"posId"`
+	PosSide        string `json:"posSide"`
+	SpotInUseAmt   string `json:"spotInUseAmt"`
+	SpotInUseCcy   string `json:"spotInUseCcy"`
+	BizRefID       string `json:"bizRefId"`
+	BizRefType     string `json:"bizRefType"`
+	ThetaBS        string `json:"thetaBS"`
+	ThetaPA        string `json:"thetaPA"`
+	TradeID        string `json:"tradeId"`
+	UTime          string `json:"uTime"`
+	Upl            string `json:"upl"`
+	UplLastPx      string `json:"uplLastPx"`
+	UplRatio       string `json:"uplRatio"`
+	UplRatioLastPx string `json:"uplRatioLastPx"`
+	VegaBS         string `json:"vegaBS"`
+	VegaPA         string `json:"vegaPA"`
+	CloseOrderAlgo []struct {
+		AlgoID          string `json:"algoId"`
+		SlTriggerPx     string `json:"slTriggerPx"`
+		SlTriggerPxType string `json:"slTriggerPxType"`
+		TpTriggerPx     string `json:"tpTriggerPx"`
+		TpTriggerPxType string `json:"tpTriggerPxType"`
+		CloseFraction   string `json:"closeFraction"`
+	} `json:"closeOrderAlgo"`
+}
+
+type OkxPositionsResponse struct {
+	Code string        `json:"code"`
+	Msg  string        `json:"msg"`
+	Data []OkxPosition `json:"data"`
 }

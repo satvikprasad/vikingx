@@ -12,13 +12,57 @@ import (
 	"github.com/satvikprasad/vikingx/okx"
 )
 
-func createTemplateRoutes(r *gin.Engine, a *okx.OkApi, db *db.DbInstance) {
+type Position struct {
+	Size   float64
+	Type   string
+	Symbol string
+}
+
+func createTemplateRoutes(r *gin.Engine, a *okx.OkxApi, db db.Database) {
 	r.GET("/", makeTemplateAPIFunc(a, db, handleHomeTemplate))
 
-	r.GET("/trades", makeTemplateAPIFunc(a, db, handleTradesTemplate))
-	r.GET("/instruments", makeTemplateAPIFunc(a, db, handleInstrumentsTemplate))
+	r.GET("/positions-list", makeTemplateAPIFunc(a, db,
+		handlePositionsListTemplate))
+	r.GET("/trades-list", makeTemplateAPIFunc(a, db,
+		handleTradesTemplate))
+	r.GET("/instruments-list", makeTemplateAPIFunc(a, db,
+		handleInstrumentsTemplate))
 
-	r.POST("/market-order", makeTemplateAPIFunc(a, db, handlePlaceMarketOrderTemplate))
+	r.POST("/market-order", makeTemplateAPIFunc(a, db,
+		handlePlaceMarketOrderTemplate))
+}
+
+func handlePositionsListTemplate(c *Context) error {
+	okxPositions, err := c.a.Positions()
+	if err != nil {
+		return err
+	}
+
+	positions := []Position{}
+	for _, o := range okxPositions {
+		cx := 1.0
+		if o.InstType == "SWAP" {
+			ctSize, err := c.a.TickerCtSize(o.InstID)
+			if err != nil {
+				return err
+			}
+			cx = ctSize
+		}
+
+		positionSize, err := strconv.ParseFloat(o.Pos, 64)
+		if err != nil {
+			return err
+		}
+
+		positions = append(positions, Position{
+			Size:   positionSize * cx,
+			Symbol: o.InstID,
+			Type:   o.InstType,
+		})
+	}
+
+	writeHTML(c.c, http.StatusOK, "home/positionslist.tmpl", positions)
+	return nil
 }
 
 func handlePlaceMarketOrderTemplate(c *Context) error {
@@ -30,7 +74,7 @@ func handlePlaceMarketOrderTemplate(c *Context) error {
 		return err
 	}
 
-	sz, err := c.a.GetTickerCtSize(ticker)
+	sz, err := c.a.TickerCtSize(ticker)
 	if err != nil {
 		return err
 	}
@@ -39,17 +83,24 @@ func handlePlaceMarketOrderTemplate(c *Context) error {
 		return err
 	}
 
-	trades := []models.Trade{}
-	c.db.Db.Find(&trades)
+	market, err := c.a.MarkPrice(ticker)
+	if err != nil {
+		return err
+	}
+
+	trades := c.db.Trades()
+
+	fmt.Println(market)
 
 	trade := models.Trade{
 		Ticker: ticker,
 		Side:   side,
-		Size:   1,
+		Size:   size,
+		Price:  market,
 	}
-	c.db.Db.Create(&trade)
+	c.db.CreateTrade(&trade)
 
-	trades = append(trades, trade)
+	trades = append(trades, &trade)
 
 	sort.Slice(trades, func(a, b int) bool {
 		return trades[a].CreatedAt.Unix() > trades[b].CreatedAt.Unix()
@@ -60,7 +111,7 @@ func handlePlaceMarketOrderTemplate(c *Context) error {
 }
 
 func handleInstrumentsTemplate(c *Context) error {
-	tickers, err := c.a.GetTickers("SWAP")
+	tickers, err := c.a.Tickers("SWAP")
 	if err != nil {
 		return err
 	}
@@ -76,9 +127,7 @@ func handleInstrumentsTemplate(c *Context) error {
 }
 
 func handleTradesTemplate(c *Context) error {
-	trades := []models.Trade{}
-
-	c.db.Db.Find(&trades)
+	trades := c.db.Trades()
 
 	sort.Slice(trades, func(a, b int) bool {
 		return trades[a].CreatedAt.Unix() > trades[b].CreatedAt.Unix()
@@ -93,7 +142,7 @@ func handleHomeTemplate(c *Context) error {
 	return nil
 }
 
-func makeTemplateAPIFunc(a *okx.OkApi, db *db.DbInstance, fn apiFunc) gin.HandlerFunc {
+func makeTemplateAPIFunc(a *okx.OkxApi, db db.Database, fn apiFunc) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if db == nil {
 			writeHTML(c, http.StatusInternalServerError,
