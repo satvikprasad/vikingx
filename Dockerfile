@@ -1,14 +1,3 @@
-FROM node:lts-alpine
-
-WORKDIR /app/frontend
-COPY ./frontend/package*.json ./
-
-RUN npm install
-
-COPY ./frontend ./
-
-RUN npm run build
-
 FROM golang:latest
 
 WORKDIR /app

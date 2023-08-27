@@ -1,8 +1,8 @@
+.PHONY: run
+
 build:
 	@go build -o bin/vikingx
-server:
-	cd frontend && npm run build
-run: build server
+run: build 
 	@bin/vikingx
 test:
 	@go test -v ./...
