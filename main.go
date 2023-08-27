@@ -11,14 +11,14 @@ import (
 )
 
 func main() {
-	godotenv.Load(".env")
+	godotenv.Load()
 
 	db, err := db.NewDB()
 	if err != nil {
 		fmt.Printf("Error creating database: %s", err)
 	}
 
-	a := okx.NewOkApi(true, ".env")
+	a := okx.NewOkxApi(true)
 
 	api.ListenAndServe(db, a, os.Getenv("PORT"))
 }

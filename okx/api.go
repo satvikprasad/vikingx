@@ -17,29 +17,29 @@ import (
 	"github.com/joho/godotenv"
 )
 
-type OkCredentials struct {
+type OkxCredentials struct {
 	Passphrase string
 	AccessKey  string
 	SecretKey  string
 }
 
-type OkRequestParams struct {
+type OkxRequestParams struct {
 	Method      string
 	RequestPath string
 	Body        string
 }
 
-type OkApi struct {
-	OkCredentials
+type OkxApi struct {
+	OkxCredentials
 
 	Demo bool
 }
 
-func NewOkApi(demo bool, envPath string) *OkApi {
-	godotenv.Load(envPath)
+func NewOkxApi(demo bool) *OkxApi {
+	godotenv.Load()
 
-	return &OkApi{
-		OkCredentials: OkCredentials{
+	return &OkxApi{
+		OkxCredentials: OkxCredentials{
 			Passphrase: os.Getenv("PASSPHRASE"),
 			AccessKey:  os.Getenv("ACCESS_KEY"),
 			SecretKey:  os.Getenv("SECRET_KEY"),
@@ -48,8 +48,32 @@ func NewOkApi(demo bool, envPath string) *OkApi {
 	}
 }
 
-func (a *OkApi) GetTickers(instType string) ([]OkTicker, error) {
-	p := OkRequestParams{
+func (a *OkxApi) Positions() ([]OkxPosition, error) {
+	p := OkxRequestParams{
+		Method:      "GET",
+		RequestPath: "/api/v5/account/positions",
+	}
+
+	res, err := a.SendRequest(p)
+	if err != nil {
+		return nil, err
+	}
+
+	positionRes := &OkxPositionsResponse{}
+	if err := json.Unmarshal([]byte(res), &positionRes); err != nil {
+		return nil, err
+	}
+
+	if positionRes.Code != "0" {
+		return nil, fmt.Errorf("Error getting positions: %s",
+			positionRes.Msg)
+	}
+
+	return positionRes.Data, nil
+}
+
+func (a *OkxApi) Tickers(instType string) ([]OkxTicker, error) {
+	p := OkxRequestParams{
 		Method:      "GET",
 		RequestPath: "/api/v5/market/tickers?instType=" + instType,
 	}
@@ -59,7 +83,7 @@ func (a *OkApi) GetTickers(instType string) ([]OkTicker, error) {
 		return nil, err
 	}
 
-	tickerRes := &OkTickersResponse{}
+	tickerRes := &OkxTickersResponse{}
 	if err := json.Unmarshal([]byte(res), &tickerRes); err != nil {
 		return nil, err
 	}
@@ -72,8 +96,8 @@ func (a *OkApi) GetTickers(instType string) ([]OkTicker, error) {
 	return tickerRes.Data, nil
 }
 
-func (a *OkApi) GetInstruments(instType string) ([]OkInstruments, error) {
-	p := OkRequestParams{
+func (a *OkxApi) Instruments(instType string) ([]OkxInstruments, error) {
+	p := OkxRequestParams{
 		Method:      "GET",
 		RequestPath: "/api/v5/public/instruments?instType=" + instType,
 	}
@@ -83,7 +107,7 @@ func (a *OkApi) GetInstruments(instType string) ([]OkInstruments, error) {
 		return nil, err
 	}
 
-	instrumentsRes := &OkInstrumentsResponse{}
+	instrumentsRes := &OkxInstrumentsResponse{}
 	if err := json.Unmarshal([]byte(res), &instrumentsRes); err != nil {
 		return nil, err
 	}
@@ -96,9 +120,9 @@ func (a *OkApi) GetInstruments(instType string) ([]OkInstruments, error) {
 	return instrumentsRes.Data, nil
 }
 
-func (a *OkApi) GetLimitSwapPrice(symbol string) (buy float64,
+func (a *OkxApi) LimitSwapPrice(symbol string) (buy float64,
 	sell float64, err error) {
-	p := OkRequestParams{
+	p := OkxRequestParams{
 		Method:      "GET",
 		RequestPath: "/api/v5/public/price-limit?instId=" + symbol,
 	}
@@ -108,7 +132,7 @@ func (a *OkApi) GetLimitSwapPrice(symbol string) (buy float64,
 		return -1, -1, err
 	}
 
-	limitPricesRes := &OkLimitPricesResponse{}
+	limitPricesRes := &OkxLimitPricesResponse{}
 	if err := json.Unmarshal([]byte(res), &limitPricesRes); err != nil {
 		return -1, -1, err
 	}
@@ -132,16 +156,11 @@ func (a *OkApi) GetLimitSwapPrice(symbol string) (buy float64,
 	return buyLmt, sellLmt, nil
 }
 
-func (a *OkApi) GetCandleSticks(symbol string,
-	time string) ([]OkCandlestick, error) {
-	body := fmt.Sprintf(`{
-        bar: %s
-    }`, time)
-
-	p := OkRequestParams{
+func (a *OkxApi) CandleSticks(symbol string,
+	time string) ([]OkxCandlestick, error) {
+	p := OkxRequestParams{
 		Method:      "GET",
-		RequestPath: "/api/v5/market/index-candles?instId=" + symbol,
-		Body:        body,
+		RequestPath: "/api/v5/market/candles?instId=" + symbol + "&bar=" + time,
 	}
 
 	res, err := a.SendRequest(p)
@@ -149,7 +168,7 @@ func (a *OkApi) GetCandleSticks(symbol string,
 		return nil, err
 	}
 
-	candles := &OkCandlestickResponse{}
+	candles := &OkxCandlestickResponse{}
 	if err := json.Unmarshal([]byte(res), &candles); err != nil {
 		return nil, err
 	}
@@ -158,7 +177,7 @@ func (a *OkApi) GetCandleSticks(symbol string,
 		return nil, fmt.Errorf("Error getting candles: %s", candles.Msg)
 	}
 
-	c := []OkCandlestick{}
+	c := []OkxCandlestick{}
 
 	for i, v := range candles.Data {
 		timestamp, err := unixMsToTime(v[0])
@@ -172,7 +191,7 @@ func (a *OkApi) GetCandleSticks(symbol string,
 		low, err := strconv.ParseFloat(v[3], 64)
 		close, err := strconv.ParseFloat(v[4], 64)
 
-		c = append(c, OkCandlestick{
+		c = append(c, OkxCandlestick{
 			Timestamp: timestamp,
 			Open:      open,
 			High:      high,
@@ -185,7 +204,7 @@ func (a *OkApi) GetCandleSticks(symbol string,
 }
 
 // @TODO(satvikprasad): extract tradeMode into an enum
-func (a *OkApi) LimitOrder(symbol string, tradeMode string,
+func (a *OkxApi) LimitOrder(symbol string, tradeMode string,
 	side string, price float64, size float64) error {
 	body := fmt.Sprintf(`{
         "instId": "%s",
@@ -196,7 +215,7 @@ func (a *OkApi) LimitOrder(symbol string, tradeMode string,
         "sz": "%.3f"
     }`, symbol, tradeMode, side, price, size)
 
-	p := OkRequestParams{
+	p := OkxRequestParams{
 		Method:      "POST",
 		RequestPath: "/api/v5/trade/order",
 		Body:        body,
@@ -207,7 +226,7 @@ func (a *OkApi) LimitOrder(symbol string, tradeMode string,
 		return err
 	}
 
-	orderRes := &OkOrderResponse{}
+	orderRes := &OkxOrderResponse{}
 	if err := json.Unmarshal([]byte(res), &orderRes); err != nil {
 		return err
 	}
@@ -220,7 +239,7 @@ func (a *OkApi) LimitOrder(symbol string, tradeMode string,
 	return nil
 }
 
-func (a *OkApi) MarketOrderSwap(symbol string,
+func (a *OkxApi) MarketOrderSwap(symbol string,
 	side string, size float64) error {
 	body := fmt.Sprintf(`{
         "instId": "%s",
@@ -230,7 +249,7 @@ func (a *OkApi) MarketOrderSwap(symbol string,
         "sz": "%.3f"
     }`, symbol, side, size)
 
-	p := OkRequestParams{
+	p := OkxRequestParams{
 		Method:      "POST",
 		RequestPath: "/api/v5/trade/order",
 		Body:        body,
@@ -241,7 +260,7 @@ func (a *OkApi) MarketOrderSwap(symbol string,
 		return err
 	}
 
-	orderRes := &OkOrderResponse{}
+	orderRes := &OkxOrderResponse{}
 	if err := json.Unmarshal([]byte(res), &orderRes); err != nil {
 		return err
 	}
@@ -256,7 +275,7 @@ func (a *OkApi) MarketOrderSwap(symbol string,
 	return nil
 }
 
-func (a *OkApi) MarketOrder(symbol string, side string, size float64) error {
+func (a *OkxApi) MarketOrder(symbol string, side string, size float64) error {
 	body := fmt.Sprintf(`{
         "instId": "%s",
         "tdMode": "cash",
@@ -265,7 +284,7 @@ func (a *OkApi) MarketOrder(symbol string, side string, size float64) error {
         "sz": "%.3f"
     }`, symbol, side, size)
 
-	p := OkRequestParams{
+	p := OkxRequestParams{
 		Method:      "POST",
 		RequestPath: "/api/v5/trade/order",
 		Body:        body,
@@ -276,7 +295,7 @@ func (a *OkApi) MarketOrder(symbol string, side string, size float64) error {
 		return err
 	}
 
-	orderRes := &OkOrderResponse{}
+	orderRes := &OkxOrderResponse{}
 	if err := json.Unmarshal([]byte(res), &orderRes); err != nil {
 		return err
 	}
@@ -291,14 +310,14 @@ func (a *OkApi) MarketOrder(symbol string, side string, size float64) error {
 	return nil
 }
 
-func (a *OkApi) SetLeverage(symbol string, leverage int) error {
+func (a *OkxApi) SetLeverage(symbol string, leverage int) error {
 	body := fmt.Sprintf(`{
         "instId":"%s",
         "lever":"%d",
         "mgnMode":"isolated"
     }`, symbol, leverage)
 
-	p := OkRequestParams{
+	p := OkxRequestParams{
 		Method:      "POST",
 		RequestPath: "/api/v5/account/set-leverage",
 		Body:        body,
@@ -309,7 +328,7 @@ func (a *OkApi) SetLeverage(symbol string, leverage int) error {
 		return err
 	}
 
-	leverageRes := &OkDefaultResponse{}
+	leverageRes := &OkxDefaultResponse{}
 	if err := json.Unmarshal([]byte(res), &leverageRes); err != nil {
 		return err
 	}
@@ -321,8 +340,8 @@ func (a *OkApi) SetLeverage(symbol string, leverage int) error {
 	return nil
 }
 
-func (a *OkApi) GetBalance(symbol string) (float64, error) {
-	p := OkRequestParams{
+func (a *OkxApi) Balance(symbol string) (float64, error) {
+	p := OkxRequestParams{
 		Method:      "GET",
 		RequestPath: "/api/v5/account/balance?ccy=" + symbol,
 	}
@@ -332,7 +351,7 @@ func (a *OkApi) GetBalance(symbol string) (float64, error) {
 		return -1, err
 	}
 
-	balanceRes := &OkBalanceResponse{}
+	balanceRes := &OkxBalanceResponse{}
 	if err := json.Unmarshal([]byte(res), &balanceRes); err != nil {
 		return -1, err
 	}
@@ -346,7 +365,32 @@ func (a *OkApi) GetBalance(symbol string) (float64, error) {
 	return balance, nil
 }
 
-func (a *OkApi) SendRequest(p OkRequestParams) (string, error) {
+func (a *OkxApi) MarkPrice(instId string) (float64, error) {
+	p := OkxRequestParams{
+		Method:      "GET",
+		RequestPath: "/api/v5/public/mark-price?instId=" + instId,
+	}
+
+	res, err := a.SendRequest(p)
+	if err != nil {
+		return -1, err
+	}
+
+	markPriceRes := &OkxMarkPriceResponse{}
+	if err := json.Unmarshal([]byte(res), &markPriceRes); err != nil {
+		return -1, err
+	}
+	fmt.Printf("%+v\n", markPriceRes)
+
+	mark, err := strconv.ParseFloat(markPriceRes.Data[0].MarkPx, 64)
+	if err != nil {
+		return -1, err
+	}
+
+	return mark, nil
+}
+
+func (a *OkxApi) SendRequest(p OkxRequestParams) (string, error) {
 	timestamp := formatUTCTimestamp(time.Now().UTC())
 	keyHash := calculateHash(timestamp, p.Method,
 		p.RequestPath, p.Body, a.SecretKey)
@@ -364,7 +408,7 @@ func (a *OkApi) SendRequest(p OkRequestParams) (string, error) {
 	req.Header.Add("OK-ACCESS-TIMESTAMP", timestamp)
 	req.Header.Add("OK-ACCESS-PASSPHRASE", a.Passphrase)
 
-	if a.Demo {
+	if a.Demo == true {
 		req.Header.Add("x-simulated-trading", "1")
 	}
 
@@ -382,8 +426,8 @@ func (a *OkApi) SendRequest(p OkRequestParams) (string, error) {
 	return string(b), nil
 }
 
-func (a *OkApi) GetTickerCtSize(ticker string) (float64, error) {
-	inst, err := a.GetInstruments("SWAP")
+func (a *OkxApi) TickerCtSize(ticker string) (float64, error) {
+	inst, err := a.Instruments("SWAP")
 	if err != nil {
 		return 0, err
 	}
@@ -404,9 +448,9 @@ func (a *OkApi) GetTickerCtSize(ticker string) (float64, error) {
 	return 0, fmt.Errorf("Could not get ticker %s", ticker)
 }
 
-func (a *OkApi) ConvertTickerName(instType string,
+func (a *OkxApi) ConvertTickerName(instType string,
 	ticker string) (string, error) {
-	inst, err := a.GetInstruments(instType)
+	inst, err := a.Instruments(instType)
 	if err != nil {
 		return "", err
 	}
@@ -432,7 +476,6 @@ func (a *OkApi) ConvertTickerName(instType string,
 
 	return "", fmt.Errorf("Could not get ticker %s", ticker)
 }
-
 func calculateHash(timestamp string, method string, requestPath string,
 	body string, secretKey string) string {
 	key := timestamp + method + requestPath + body

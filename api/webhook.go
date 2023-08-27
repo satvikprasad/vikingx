@@ -41,7 +41,7 @@ type WebhookRequest struct {
 	} `json:"strategy"`
 }
 
-func createWebhookRoutes(r *gin.Engine, a *okx.OkApi, db *db.DbInstance) {
+func createWebhookRoutes(r *gin.Engine, a *okx.OkxApi, db db.Database) {
 	r.POST("/webhook", makeAPIFunc(a, db, handleWebhook))
 }
 
@@ -63,7 +63,7 @@ func handleWebhook(c *Context) error {
 			return err
 		}
 
-		sz, err := c.a.GetTickerCtSize(t.Ticker)
+		sz, err := c.a.TickerCtSize(t.Ticker)
 		if err != nil {
 			return err
 		}
@@ -102,7 +102,7 @@ func handleWebhook(c *Context) error {
 		PrevMarketPositionSize: t.Strategy.PrevMarketPositionSize,
 	}
 
-	c.db.Db.Create(&trade)
+	c.db.CreateTrade(&trade)
 
 	writeJSON(c.c, http.StatusOK, trade)
 	return nil
