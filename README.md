@@ -1,4 +1,4 @@
-# VIKINGX.
+# VIKINGX
 ## Instructions
 ### Quickstart
 To run:
