@@ -25,15 +25,35 @@ body {
             <div class="row">
                 <ul id="tickers-list" 
                     hx-get="/instruments"
-                    hx-trigger="load, every 1s"
+                    hx-trigger="load, every 2s"
                     class="list-group list-group-horizontal"/>
             </div>
-            <div class="container-sm">
+            <div class="row">
+                <div class="container-sm col">
+                    <div class="col">
+                        <ul id="trades-list" 
+                            hx-get="/trades"
+                            hx-trigger="load, every 2s"
+                            class="list-group"/>
+                    </div>
+                </div>
                 <div class="col">
-                    <ul id="trades-list" 
-                        hx-get="/trades"
-                        hx-trigger="load, every 1s"
-                        class="list-group"/>
+                    <form hx-post="/market-order" hx-target="#trades-list">
+                        <div>
+                            <label for="trade-ticker">Ticker</label>
+                            <input type="text" name="ticker" id="trade-ticker"></input>
+                        </div>
+                        <div>
+                            <label for="trade-side">Side</label>
+                            <input type="text" name="side" id="trade-side"></input>
+                        </div>
+                        <div>
+                            <label for="trade-size">Size</label>
+                            <input type="number" name="size" id="trade-size"></input>
+                        </div>
+
+                        <button type="submit">Place trade</button>
+                    </form>
                 </div>
             </div>
         </div>
