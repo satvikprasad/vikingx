@@ -1,4 +1,4 @@
-package okx
+package trader
 
 import "time"
 

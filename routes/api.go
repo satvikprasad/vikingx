@@ -1,16 +1,12 @@
-package api
+package routes
 
 import (
 	"fmt"
 	"net/http"
-	"os"
-	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/satvikprasad/vikingx/db"
 	"github.com/satvikprasad/vikingx/models"
-	"github.com/satvikprasad/vikingx/okx"
+	"github.com/satvikprasad/vikingx/server"
 )
 
 type WebhookRequest struct {
@@ -41,14 +37,73 @@ type WebhookRequest struct {
 	} `json:"strategy"`
 }
 
-func createWebhookRoutes(r *gin.Engine, a *okx.OkxApi, db db.Database) {
-	r.POST("/webhook", makeAPIFunc(a, db, handleWebhook))
+func CreateTrade(c *server.Context) error {
+	trade := new(models.Trade)
+	if err := c.Context.BindJSON(trade); err != nil {
+		return err
+	}
+
+	c.Database.CreateTrade(trade)
+
+	writeJSON(c.Context, http.StatusCreated, trade)
+	return nil
 }
 
-func handleWebhook(c *Context) error {
+func Trades(c *server.Context) error {
+	trades := c.Database.Trades()
+
+	writeJSON(c.Context, http.StatusOK, trades)
+	return nil
+}
+
+func Balance(c *server.Context) error {
+	bal, err := c.Trader.Balance("USDT")
+	if err != nil {
+		return err
+	}
+
+	writeJSON(c.Context, http.StatusOK, []string{fmt.Sprintf("%f", bal)})
+	return nil
+}
+
+func BidAsk(c *server.Context) error {
+	bid, ask, err := c.Trader.LimitSwapPrice(c.Context.Param("ticker"))
+	if err != nil {
+		return err
+	}
+
+	writeJSON(c.Context, http.StatusOK, []float64{
+		bid,
+		ask,
+	})
+	return nil
+}
+
+func Instruments(c *server.Context) error {
+	instruments, err := c.Trader.Instruments(c.Context.Param("instType"))
+	if err != nil {
+		return err
+	}
+
+	writeJSON(c.Context, http.StatusOK, instruments)
+	return nil
+}
+
+func Candles(c *server.Context) error {
+	candles, err := c.Trader.CandleSticks("ETH-USDT", "1D")
+	if err != nil {
+		return err
+	}
+
+	writeJSON(c.Context, http.StatusOK, candles)
+	return nil
+}
+
+/**
+func HandleWebhook(c *server.Context) error {
 	t := WebhookRequest{}
 
-	if err := c.c.BindJSON(&t); err != nil {
+	if err := c.Context.BindJSON(&t); err != nil {
 		return fmt.Errorf("Error binding to json body")
 	}
 
@@ -58,33 +113,33 @@ func handleWebhook(c *Context) error {
 
 	switch strings.Contains(t.Ticker, ".P") || strings.Contains(t.Ticker, "SWAP") {
 	case true:
-		ticker, err := c.a.ConvertTickerName("SWAP", t.Ticker)
+		ticker, err := c.Trader.ConvertTickerName("SWAP", t.Ticker)
 		if err != nil {
 			return err
 		}
 
-		sz, err := c.a.TickerCtSize(t.Ticker)
+		sz, err := c.Trader.TickerCtSize(t.Ticker)
 		if err != nil {
 			return err
 		}
 
-		if err := c.a.SetLeverage(ticker, 20); err != nil {
+		if err := c.Trader.SetLeverage(ticker, 20); err != nil {
 			fmt.Printf("Could not set leverage: %s\n", err)
 		}
 
-		if err := c.a.MarketOrderSwap(ticker, t.Strategy.OrderAction,
+		if err := c.Trader.MarketOrderSwap(ticker, t.Strategy.OrderAction,
 			float64(t.Strategy.OrderContracts)/sz); err != nil {
 			fmt.Println(err)
 			return fmt.Errorf("Error placing order: %s", err)
 		}
 	case false:
-		ticker, err := c.a.ConvertTickerName("SPOT", t.Ticker)
+		ticker, err := c.Trader.ConvertTickerName("SPOT", t.Ticker)
 		if err != nil {
 			fmt.Println(err)
 			return fmt.Errorf("Error decoding ticker info: %s", err)
 		}
 
-		if err := c.a.MarketOrder(ticker, t.Strategy.OrderAction,
+		if err := c.Trader.MarketOrder(ticker, t.Strategy.OrderAction,
 			float64(t.Strategy.OrderContracts)); err != nil {
 			fmt.Println(err)
 			return fmt.Errorf("Error placing order: %s", err)
@@ -102,8 +157,9 @@ func handleWebhook(c *Context) error {
 		PrevMarketPositionSize: t.Strategy.PrevMarketPositionSize,
 	}
 
-	c.db.CreateTrade(&trade)
+	c.Database.CreateTrade(&trade)
 
-	writeJSON(c.c, http.StatusOK, trade)
+	writeJSON(c.Context, http.StatusOK, trade)
 	return nil
 }
+**/

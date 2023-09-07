@@ -1,4 +1,4 @@
-package okx
+package trader
 
 import (
 	"bytes"
@@ -29,16 +29,16 @@ type OkxRequestParams struct {
 	Body        string
 }
 
-type OkxApi struct {
+type OkxTrader struct {
 	OkxCredentials
 
 	Demo bool
 }
 
-func NewOkxApi(demo bool) *OkxApi {
+func NewOkxTrader(demo bool) Trader {
 	godotenv.Load()
 
-	return &OkxApi{
+	return &OkxTrader{
 		OkxCredentials: OkxCredentials{
 			Passphrase: os.Getenv("PASSPHRASE"),
 			AccessKey:  os.Getenv("ACCESS_KEY"),
@@ -48,7 +48,8 @@ func NewOkxApi(demo bool) *OkxApi {
 	}
 }
 
-func (a *OkxApi) Positions() ([]OkxPosition, error) {
+// TODO(satvik): Make this return ct size factored in
+func (a *OkxTrader) Positions() ([]OkxPosition, error) {
 	p := OkxRequestParams{
 		Method:      "GET",
 		RequestPath: "/api/v5/account/positions",
@@ -72,7 +73,7 @@ func (a *OkxApi) Positions() ([]OkxPosition, error) {
 	return positionRes.Data, nil
 }
 
-func (a *OkxApi) Tickers(instType string) ([]OkxTicker, error) {
+func (a *OkxTrader) Tickers(instType string) ([]OkxTicker, error) {
 	p := OkxRequestParams{
 		Method:      "GET",
 		RequestPath: "/api/v5/market/tickers?instType=" + instType,
@@ -96,7 +97,7 @@ func (a *OkxApi) Tickers(instType string) ([]OkxTicker, error) {
 	return tickerRes.Data, nil
 }
 
-func (a *OkxApi) Instruments(instType string) ([]OkxInstruments, error) {
+func (a *OkxTrader) Instruments(instType string) ([]OkxInstruments, error) {
 	p := OkxRequestParams{
 		Method:      "GET",
 		RequestPath: "/api/v5/public/instruments?instType=" + instType,
@@ -120,8 +121,7 @@ func (a *OkxApi) Instruments(instType string) ([]OkxInstruments, error) {
 	return instrumentsRes.Data, nil
 }
 
-func (a *OkxApi) LimitSwapPrice(symbol string) (buy float64,
-	sell float64, err error) {
+func (a *OkxTrader) LimitSwapPrice(symbol string) (float64, float64, error) {
 	p := OkxRequestParams{
 		Method:      "GET",
 		RequestPath: "/api/v5/public/price-limit?instId=" + symbol,
@@ -156,11 +156,11 @@ func (a *OkxApi) LimitSwapPrice(symbol string) (buy float64,
 	return buyLmt, sellLmt, nil
 }
 
-func (a *OkxApi) CandleSticks(symbol string,
+func (a *OkxTrader) CandleSticks(symbol string,
 	time string) ([]OkxCandlestick, error) {
 	p := OkxRequestParams{
 		Method:      "GET",
-		RequestPath: "/api/v5/market/candles?instId=" + symbol + "&bar=" + time,
+		RequestPath: "/api/v5/market/candles?instId=" + symbol + "&bar=" + time + "&limit=300",
 	}
 
 	res, err := a.SendRequest(p)
@@ -204,7 +204,7 @@ func (a *OkxApi) CandleSticks(symbol string,
 }
 
 // @TODO(satvikprasad): extract tradeMode into an enum
-func (a *OkxApi) LimitOrder(symbol string, tradeMode string,
+func (a *OkxTrader) LimitOrder(symbol string, tradeMode string,
 	side string, price float64, size float64) error {
 	body := fmt.Sprintf(`{
         "instId": "%s",
@@ -239,7 +239,7 @@ func (a *OkxApi) LimitOrder(symbol string, tradeMode string,
 	return nil
 }
 
-func (a *OkxApi) MarketOrderSwap(symbol string,
+func (a *OkxTrader) MarketOrderSwap(symbol string,
 	side string, size float64) error {
 	body := fmt.Sprintf(`{
         "instId": "%s",
@@ -275,7 +275,7 @@ func (a *OkxApi) MarketOrderSwap(symbol string,
 	return nil
 }
 
-func (a *OkxApi) MarketOrder(symbol string, side string, size float64) error {
+func (a *OkxTrader) MarketOrder(symbol string, side string, size float64) error {
 	body := fmt.Sprintf(`{
         "instId": "%s",
         "tdMode": "cash",
@@ -310,7 +310,7 @@ func (a *OkxApi) MarketOrder(symbol string, side string, size float64) error {
 	return nil
 }
 
-func (a *OkxApi) SetLeverage(symbol string, leverage int) error {
+func (a *OkxTrader) SetLeverage(symbol string, leverage int) error {
 	body := fmt.Sprintf(`{
         "instId":"%s",
         "lever":"%d",
@@ -340,7 +340,7 @@ func (a *OkxApi) SetLeverage(symbol string, leverage int) error {
 	return nil
 }
 
-func (a *OkxApi) Balance(symbol string) (float64, error) {
+func (a *OkxTrader) Balance(symbol string) (float64, error) {
 	p := OkxRequestParams{
 		Method:      "GET",
 		RequestPath: "/api/v5/account/balance?ccy=" + symbol,
@@ -365,7 +365,7 @@ func (a *OkxApi) Balance(symbol string) (float64, error) {
 	return balance, nil
 }
 
-func (a *OkxApi) MarkPrice(instId string) (float64, error) {
+func (a *OkxTrader) MarkPrice(instId string) (float64, error) {
 	p := OkxRequestParams{
 		Method:      "GET",
 		RequestPath: "/api/v5/public/mark-price?instId=" + instId,
@@ -390,7 +390,7 @@ func (a *OkxApi) MarkPrice(instId string) (float64, error) {
 	return mark, nil
 }
 
-func (a *OkxApi) SendRequest(p OkxRequestParams) (string, error) {
+func (a *OkxTrader) SendRequest(p OkxRequestParams) (string, error) {
 	timestamp := formatUTCTimestamp(time.Now().UTC())
 	keyHash := calculateHash(timestamp, p.Method,
 		p.RequestPath, p.Body, a.SecretKey)
@@ -426,7 +426,7 @@ func (a *OkxApi) SendRequest(p OkxRequestParams) (string, error) {
 	return string(b), nil
 }
 
-func (a *OkxApi) TickerCtSize(ticker string) (float64, error) {
+func (a *OkxTrader) TickerCtSize(ticker string) (float64, error) {
 	inst, err := a.Instruments("SWAP")
 	if err != nil {
 		return 0, err
@@ -448,7 +448,7 @@ func (a *OkxApi) TickerCtSize(ticker string) (float64, error) {
 	return 0, fmt.Errorf("Could not get ticker %s", ticker)
 }
 
-func (a *OkxApi) ConvertTickerName(instType string,
+func (a *OkxTrader) ConvertTickerName(instType string,
 	ticker string) (string, error) {
 	inst, err := a.Instruments(instType)
 	if err != nil {
@@ -476,6 +476,7 @@ func (a *OkxApi) ConvertTickerName(instType string,
 
 	return "", fmt.Errorf("Could not get ticker %s", ticker)
 }
+
 func calculateHash(timestamp string, method string, requestPath string,
 	body string, secretKey string) string {
 	key := timestamp + method + requestPath + body
