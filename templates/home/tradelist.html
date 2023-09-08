@@ -1,8 +1,0 @@
-{{ define "home/tradelist.tmpl" }}
-{{ range $value := . }}
-<li class="list-group-item mb-2">
-    <h2 class="text-uppercase">{{ $value.Side }} {{ $value.Size }} ${{ $value.Ticker }} at ${{ $value.Price }}</h2>
-    <p class="fst-italic">{{ $value.CreatedAt }}</p>
-</li>
-{{ end }}
-{{ end }}

@@ -1,7 +1,5 @@
-{{ define "home/positionslist.tmpl" }}
-{{ range $value := . }}
+{{ define "home/positions.tmpl" }} {{ range $value := . }}
 <li class="list-group-item mb-2">
     <h2 class="text-uppercase">{{ $value.Size }} ${{ $value.Symbol }}</h2>
 </li>
-{{ end }}
-{{ end }}
+{{ end }} {{ end }}
