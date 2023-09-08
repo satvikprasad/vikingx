@@ -1,7 +1,5 @@
 package trader
 
-import "time"
-
 type OkxBalanceResponse struct {
 	Code string `json:"code"`
 	Data []struct {
@@ -92,12 +90,12 @@ type OkxCandlestickResponse struct {
 }
 
 type OkxInstrumentsResponse struct {
-	Code string           `json:"code"`
-	Msg  string           `json:"msg"`
-	Data []OkxInstruments `json:"data"`
+	Code string          `json:"code"`
+	Msg  string          `json:"msg"`
+	Data []OkxInstrument `json:"data"`
 }
 
-type OkxInstruments struct {
+type OkxInstrument struct {
 	InstType string `json:"instType"`
 
 	InstID     string `json:"instId"`
@@ -131,11 +129,6 @@ type OkxInstruments struct {
 
 	MaxTriggerSz string `json:"maxTriggerSz"`
 	MaxStopSz    string `json:"maxStopSz"`
-}
-
-type OkxCandlestick struct {
-	Timestamp              time.Time
-	Open, High, Low, Close float64
 }
 
 type OkxTicker struct {

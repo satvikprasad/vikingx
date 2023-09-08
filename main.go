@@ -28,7 +28,7 @@ func main() {
 	s.GET("/instruments", routes.RenderInstruments)
 	s.POST("/market-order", routes.RenderPlaceMarketOrder)
 
-	// s.POST("/api/webhook", routes.HandleWebhook)
+	s.POST("/api/webhook", routes.HandleWebhook)
 	s.POST("/api/create-trade", routes.CreateTrade)
 	s.GET("/api/trades", routes.Trades)
 	s.GET("/api/balance", routes.Balance)

@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
@@ -11,39 +10,10 @@ import (
 	"github.com/satvikprasad/vikingx/server"
 )
 
-type Position struct {
-	Size   float64
-	Type   string
-	Symbol string
-}
-
 func RenderPositionsList(c *server.Context) error {
-	okxPositions, err := c.Trader.Positions()
+	positions, err := c.Trader.Positions()
 	if err != nil {
 		return err
-	}
-
-	positions := []Position{}
-	for _, o := range okxPositions {
-		cx := 1.0
-		if o.InstType == "SWAP" {
-			ctSize, err := c.Trader.TickerCtSize(o.InstID)
-			if err != nil {
-				return err
-			}
-			cx = ctSize
-		}
-
-		positionSize, err := strconv.ParseFloat(o.Pos, 64)
-		if err != nil {
-			return err
-		}
-
-		positions = append(positions, Position{
-			Size:   positionSize * cx,
-			Symbol: o.InstID,
-			Type:   o.InstType,
-		})
 	}
 
 	c.Context.HTML(http.StatusOK, "home/positions.tmpl", positions)
@@ -51,8 +21,6 @@ func RenderPositionsList(c *server.Context) error {
 }
 
 func RenderPlaceMarketOrder(c *server.Context) error {
-	fmt.Println("SDLKJFLS")
-
 	ticker := c.Context.Request.PostFormValue("ticker")
 	side := c.Context.Request.PostFormValue("side")
 
@@ -63,10 +31,10 @@ func RenderPlaceMarketOrder(c *server.Context) error {
 
 	sz, err := c.Trader.TickerCtSize(ticker)
 	if err != nil {
-		return err
+		sz = 1.0
 	}
 
-	if err := c.Trader.MarketOrderSwap(ticker, side, float64(size)/sz); err != nil {
+	if err := c.Trader.MarketOrder(ticker, side, float64(size)/sz); err != nil {
 		return err
 	}
 
@@ -83,32 +51,9 @@ func RenderPlaceMarketOrder(c *server.Context) error {
 	}
 	c.Database.CreateTrade(&trade)
 
-	okxPositions, err := c.Trader.Positions()
+	positions, err := c.Trader.Positions()
 	if err != nil {
 		return err
-	}
-
-	positions := []Position{}
-	for _, o := range okxPositions {
-		cx := 1.0
-		if o.InstType == "SWAP" {
-			ctSize, err := c.Trader.TickerCtSize(o.InstID)
-			if err != nil {
-				return err
-			}
-			cx = ctSize
-		}
-
-		positionSize, err := strconv.ParseFloat(o.Pos, 64)
-		if err != nil {
-			return err
-		}
-
-		positions = append(positions, Position{
-			Size:   positionSize * cx,
-			Symbol: o.InstID,
-			Type:   o.InstType,
-		})
 	}
 
 	c.Context.HTML(http.StatusOK, "home/positions.tmpl", positions)
@@ -122,7 +67,7 @@ func RenderInstruments(c *server.Context) error {
 	}
 
 	sort.Slice(tickers, func(a, b int) bool {
-		return tickers[a].VolCcy24H > tickers[b].VolCcy24H
+		return tickers[a].Vol24H > tickers[b].Vol24H
 	})
 
 	tickers = tickers[0:10]

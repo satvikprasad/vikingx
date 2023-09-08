@@ -3,6 +3,8 @@ package routes
 import (
 	"fmt"
 	"net/http"
+	"os"
+	"regexp"
 	"time"
 
 	"github.com/satvikprasad/vikingx/models"
@@ -90,7 +92,7 @@ func Instruments(c *server.Context) error {
 }
 
 func Candles(c *server.Context) error {
-	candles, err := c.Trader.CandleSticks("ETH-USDT", "1D")
+	candles, err := c.Trader.Candlesticks("BTC-USDT", "1D")
 	if err != nil {
 		return err
 	}
@@ -99,62 +101,39 @@ func Candles(c *server.Context) error {
 	return nil
 }
 
-/**
 func HandleWebhook(c *server.Context) error {
-	t := WebhookRequest{}
+	r := WebhookRequest{}
 
-	if err := c.Context.BindJSON(&t); err != nil {
+	if err := c.Context.BindJSON(&r); err != nil {
 		return fmt.Errorf("Error binding to json body")
 	}
 
-	if t.Passphrase != os.Getenv("WEBHOOK_PHRASE") {
+	if r.Passphrase != os.Getenv("WEBHOOK_PHRASE") {
 		return fmt.Errorf("Error")
 	}
 
-	switch strings.Contains(t.Ticker, ".P") || strings.Contains(t.Ticker, "SWAP") {
-	case true:
-		ticker, err := c.Trader.ConvertTickerName("SWAP", t.Ticker)
-		if err != nil {
-			return err
-		}
+	ticker, err := convertTickerName(r.Ticker)
+	if err != nil {
+		return err
+	}
 
-		sz, err := c.Trader.TickerCtSize(t.Ticker)
-		if err != nil {
-			return err
-		}
+	sz, err := c.Trader.TickerCtSize(r.Ticker)
+	if err != nil {
+		sz = 1.0
+	}
 
-		if err := c.Trader.SetLeverage(ticker, 20); err != nil {
-			fmt.Printf("Could not set leverage: %s\n", err)
-		}
-
-		if err := c.Trader.MarketOrderSwap(ticker, t.Strategy.OrderAction,
-			float64(t.Strategy.OrderContracts)/sz); err != nil {
-			fmt.Println(err)
-			return fmt.Errorf("Error placing order: %s", err)
-		}
-	case false:
-		ticker, err := c.Trader.ConvertTickerName("SPOT", t.Ticker)
-		if err != nil {
-			fmt.Println(err)
-			return fmt.Errorf("Error decoding ticker info: %s", err)
-		}
-
-		if err := c.Trader.MarketOrder(ticker, t.Strategy.OrderAction,
-			float64(t.Strategy.OrderContracts)); err != nil {
-			fmt.Println(err)
-			return fmt.Errorf("Error placing order: %s", err)
-		}
-	default:
-		return fmt.Errorf("Could not decode ticker")
+	if err := c.Trader.MarketOrder(ticker, r.Strategy.OrderAction,
+		float64(r.Strategy.OrderContracts)/sz); err != nil {
+		return fmt.Errorf("Error placing order: %s", err)
 	}
 
 	trade := models.Trade{
-		Ticker:                 t.Ticker,
-		Side:                   t.Strategy.OrderAction,
-		Size:                   t.Strategy.OrderContracts,
-		Price:                  t.Strategy.OrderPrice,
-		MarketPositionSize:     t.Strategy.MarketPositionSize,
-		PrevMarketPositionSize: t.Strategy.PrevMarketPositionSize,
+		Ticker:                 r.Ticker,
+		Side:                   r.Strategy.OrderAction,
+		Size:                   r.Strategy.OrderContracts,
+		Price:                  r.Strategy.OrderPrice,
+		MarketPositionSize:     r.Strategy.MarketPositionSize,
+		PrevMarketPositionSize: r.Strategy.PrevMarketPositionSize,
 	}
 
 	c.Database.CreateTrade(&trade)
@@ -162,4 +141,29 @@ func HandleWebhook(c *server.Context) error {
 	writeJSON(c.Context, http.StatusOK, trade)
 	return nil
 }
-**/
+
+func convertTickerName(ticker string) (string, error) {
+	reg, err := regexp.Compile("(.{2,4})(USDT|USD)(.P)*")
+	if err != nil {
+		return "", err
+	}
+
+	matches := reg.FindAllStringSubmatch(ticker, -1)
+	if matches == nil {
+		return "", fmt.Errorf("o ticker matches")
+	}
+
+	if len(matches[0]) < 4 {
+		return "", fmt.Errorf("ticker not formatted properly")
+	}
+
+	base := matches[0][1]
+	quote := matches[0][2]
+	perp := matches[0][3]
+
+	if perp == "" {
+		return fmt.Sprintf("%s-%s", base, quote), nil
+	}
+
+	return fmt.Sprintf("%s-%s-SWAP", base, quote), nil
+}
