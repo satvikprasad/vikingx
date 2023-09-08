@@ -29,7 +29,7 @@ func RenderPlaceMarketOrder(c *server.Context) error {
 		return err
 	}
 
-	sz, err := c.Trader.TickerCtSize(ticker)
+	sz, err := c.Trader.ContractSize(ticker)
 	if err != nil {
 		sz = 1.0
 	}

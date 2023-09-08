@@ -23,7 +23,7 @@ type OkxCredentials struct {
 	SecretKey  string
 }
 
-type OkxRequestParams struct {
+type OkxRequest struct {
 	Method      string
 	RequestPath string
 	Body        string
@@ -50,12 +50,12 @@ func NewOkxTrader(demo bool) Trader {
 
 // TODO(satvik): Make this return ct size factored in
 func (a *OkxTrader) Positions() ([]Position, error) {
-	p := OkxRequestParams{
+	p := OkxRequest{
 		Method:      "GET",
 		RequestPath: "/api/v5/account/positions",
 	}
 
-	res, err := a.SendRequest(p)
+	res, err := a.sendRequest(p)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func (a *OkxTrader) Positions() ([]Position, error) {
 	for _, o := range positionRes.Data {
 		cx := 1.0
 		if o.InstType == "SWAP" {
-			ctSize, err := a.TickerCtSize(o.InstID)
+			ctSize, err := a.ContractSize(o.InstID)
 			if err != nil {
 				return nil, err
 			}
@@ -97,12 +97,12 @@ func (a *OkxTrader) Positions() ([]Position, error) {
 }
 
 func (a *OkxTrader) Tickers(instType string) ([]Ticker, error) {
-	p := OkxRequestParams{
+	p := OkxRequest{
 		Method:      "GET",
 		RequestPath: "/api/v5/market/tickers?instType=" + instType,
 	}
 
-	res, err := a.SendRequest(p)
+	res, err := a.sendRequest(p)
 	if err != nil {
 		return nil, err
 	}
@@ -152,12 +152,12 @@ func (a *OkxTrader) Tickers(instType string) ([]Ticker, error) {
 }
 
 func (a *OkxTrader) Instruments(instType string) ([]Instrument, error) {
-	p := OkxRequestParams{
+	p := OkxRequest{
 		Method:      "GET",
 		RequestPath: "/api/v5/public/instruments?instType=" + instType,
 	}
 
-	res, err := a.SendRequest(p)
+	res, err := a.sendRequest(p)
 	if err != nil {
 		return nil, err
 	}
@@ -188,12 +188,12 @@ func (a *OkxTrader) Instruments(instType string) ([]Instrument, error) {
 }
 
 func (a *OkxTrader) LimitSwapPrice(symbol string) (float64, float64, error) {
-	p := OkxRequestParams{
+	p := OkxRequest{
 		Method:      "GET",
 		RequestPath: "/api/v5/public/price-limit?instId=" + symbol,
 	}
 
-	res, err := a.SendRequest(p)
+	res, err := a.sendRequest(p)
 	if err != nil {
 		return -1, -1, err
 	}
@@ -224,12 +224,12 @@ func (a *OkxTrader) LimitSwapPrice(symbol string) (float64, float64, error) {
 
 func (a *OkxTrader) Candlesticks(symbol string,
 	time string) ([]Candlestick, error) {
-	p := OkxRequestParams{
+	p := OkxRequest{
 		Method:      "GET",
 		RequestPath: "/api/v5/market/candles?instId=" + symbol + "&bar=" + time + "&limit=300",
 	}
 
-	res, err := a.SendRequest(p)
+	res, err := a.sendRequest(p)
 	if err != nil {
 		return nil, err
 	}
@@ -281,13 +281,13 @@ func (a *OkxTrader) LimitOrder(symbol string, tradeMode string,
         "sz": "%.3f"
     }`, symbol, tradeMode, side, price, size)
 
-	p := OkxRequestParams{
+	p := OkxRequest{
 		Method:      "POST",
 		RequestPath: "/api/v5/trade/order",
 		Body:        body,
 	}
 
-	res, err := a.SendRequest(p)
+	res, err := a.sendRequest(p)
 	if err != nil {
 		return err
 	}
@@ -321,13 +321,13 @@ func (a *OkxTrader) MarketOrder(symbol string, side string, size float64) error 
 
 	fmt.Println(body)
 
-	p := OkxRequestParams{
+	p := OkxRequest{
 		Method:      "POST",
 		RequestPath: "/api/v5/trade/order",
 		Body:        body,
 	}
 
-	res, err := a.SendRequest(p)
+	res, err := a.sendRequest(p)
 	if err != nil {
 		return err
 	}
@@ -337,9 +337,9 @@ func (a *OkxTrader) MarketOrder(symbol string, side string, size float64) error 
 		return err
 	}
 
-	fmt.Println(orderRes)
-
 	if orderRes.Code != "0" {
+		fmt.Println(orderRes)
+
 		return fmt.Errorf("Error placing market order: %s: %s",
 			orderRes.Data[0].SMsg, orderRes.Msg)
 	}
@@ -356,13 +356,13 @@ func (a *OkxTrader) SetLeverage(symbol string, leverage int) error {
         "mgnMode":"isolated"
     }`, symbol, leverage)
 
-	p := OkxRequestParams{
+	p := OkxRequest{
 		Method:      "POST",
 		RequestPath: "/api/v5/account/set-leverage",
 		Body:        body,
 	}
 
-	res, err := a.SendRequest(p)
+	res, err := a.sendRequest(p)
 	if err != nil {
 		return err
 	}
@@ -380,12 +380,12 @@ func (a *OkxTrader) SetLeverage(symbol string, leverage int) error {
 }
 
 func (a *OkxTrader) Balance(symbol string) (float64, error) {
-	p := OkxRequestParams{
+	p := OkxRequest{
 		Method:      "GET",
 		RequestPath: "/api/v5/account/balance?ccy=" + symbol,
 	}
 
-	res, err := a.SendRequest(p)
+	res, err := a.sendRequest(p)
 	if err != nil {
 		return -1, err
 	}
@@ -405,12 +405,12 @@ func (a *OkxTrader) Balance(symbol string) (float64, error) {
 }
 
 func (a *OkxTrader) MarkPrice(instId string) (float64, error) {
-	p := OkxRequestParams{
+	p := OkxRequest{
 		Method:      "GET",
 		RequestPath: "/api/v5/public/mark-price?instId=" + instId,
 	}
 
-	res, err := a.SendRequest(p)
+	res, err := a.sendRequest(p)
 	if err != nil {
 		return -1, err
 	}
@@ -429,7 +429,33 @@ func (a *OkxTrader) MarkPrice(instId string) (float64, error) {
 	return mark, nil
 }
 
-func (a *OkxTrader) SendRequest(p OkxRequestParams) (string, error) {
+func (a *OkxTrader) ContractSize(ticker string) (float64, error) {
+	if !strings.Contains(ticker, "SWAP") {
+		return -1, fmt.Errorf("ct size requested for ticker %s is not perpetual", ticker)
+	}
+
+	inst, err := a.Instruments("SWAP")
+	if err != nil {
+		return 0, err
+	}
+
+	for _, instrument := range inst {
+		if strings.Contains(ticker, instrument.CtValCcy) &&
+			strings.Contains(ticker, instrument.SettleCcy) &&
+			strings.Contains(instrument.Symbol, "USDT") {
+			ctVal, err := strconv.ParseFloat(instrument.CtVal, 64)
+			if err != nil {
+				return 0, err
+			}
+
+			return ctVal, nil
+		}
+	}
+
+	return 0, fmt.Errorf("Could not get ticker %s", ticker)
+}
+
+func (a *OkxTrader) sendRequest(p OkxRequest) (string, error) {
 	timestamp := formatUTCTimestamp(time.Now().UTC())
 	keyHash := calculateHash(timestamp, p.Method,
 		p.RequestPath, p.Body, a.SecretKey)
@@ -463,32 +489,6 @@ func (a *OkxTrader) SendRequest(p OkxRequestParams) (string, error) {
 	}
 
 	return string(b), nil
-}
-
-func (a *OkxTrader) TickerCtSize(ticker string) (float64, error) {
-	if !strings.Contains(ticker, "SWAP") {
-		return -1, fmt.Errorf("ct size requested for ticker %s is not perpetual", ticker)
-	}
-
-	inst, err := a.Instruments("SWAP")
-	if err != nil {
-		return 0, err
-	}
-
-	for _, instrument := range inst {
-		if strings.Contains(ticker, instrument.CtValCcy) &&
-			strings.Contains(ticker, instrument.SettleCcy) &&
-			strings.Contains(instrument.Symbol, "USDT") {
-			ctVal, err := strconv.ParseFloat(instrument.CtVal, 64)
-			if err != nil {
-				return 0, err
-			}
-
-			return ctVal, nil
-		}
-	}
-
-	return 0, fmt.Errorf("Could not get ticker %s", ticker)
 }
 
 func calculateHash(timestamp string, method string, requestPath string,

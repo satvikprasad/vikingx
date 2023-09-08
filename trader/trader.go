@@ -41,5 +41,5 @@ type Trader interface {
 	SetLeverage(string, int) error
 	Balance(string) (float64, error)
 	MarkPrice(string) (float64, error)
-	TickerCtSize(string) (float64, error)
+	ContractSize(string) (float64, error)
 }

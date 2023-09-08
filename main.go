@@ -32,7 +32,7 @@ func main() {
 	s.POST("/api/create-trade", routes.CreateTrade)
 	s.GET("/api/trades", routes.Trades)
 	s.GET("/api/balance", routes.Balance)
-	s.GET("/api/candles", routes.Candles)
+	s.GET("/api/candles/:symbol", routes.Candles)
 	s.GET("/api/bidask/:ticker", routes.BidAsk)
 	s.GET("/api/instruments/:instType", routes.Instruments)
 

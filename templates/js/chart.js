@@ -6,31 +6,35 @@ const candleSeries = chart.addCandlestickSeries({
     wickUpColor: '#000000', wickDownColor: '#000000', borderColor: '#000000'
 })
 
-chart.timeScale().fitContent();
+const form = document.getElementById("symbol-form")
+const input = document.getElementById("symbol")
 
-async function fetchCandles() {
-    let res = await fetch("/api/candles")
+form.addEventListener("submit", (e) => {
+	e.preventDefault()	
+
+	fetchCandles(input.value)
+}, false)
+
+chart.timeScale().applyOptions({fixRightEdge: true, fixLeftEdge: true})
+chart.timeScale().fitContent()
+
+chart.applyOptions({
+	rightPriceScale: {
+		borderVisible: false,
+		ticksVisible: true,
+	},
+});
+
+async function fetchCandles(symbol) {
+    let res = await fetch("/api/candles/"+symbol)
     let data = await res.json()
 
     candleData = []
-
-    data.sort(function (a, b){
-        return new Date(a["Timestamp"]) - new Date(b["Timestamp"])
-    });
-    
     for (let i = 0; i < data.length; i++) {
         let date = new Date(data[i]["Timestamp"]);
 
-        if (date.getDay() == "0" || date.getDay() == "6") {
-            continue
-        }
-
-        const day = ("0" + date.getDate()).slice(-2)
-
-        const month = ("0" + (date.getMonth() + 1)).slice(-2)
-
         candleData.push({
-            time:date.getFullYear()+"-"+month+"-"+day,            
+            time:date / 1000,            
             open:data[i]["Open"],
             high:data[i]["High"],
             low:data[i]["Low"],
@@ -38,9 +42,8 @@ async function fetchCandles() {
         })
     }
 
-    console.log(candleData)
-
     candleSeries.setData(candleData)
 }
 
-fetchCandles()
+
+fetchCandles("BTCUSDT")
