@@ -65,7 +65,7 @@ func Balance(c *server.Context) error {
 		return err
 	}
 
-	writeJSON(c.Context, http.StatusOK, []string{fmt.Sprintf("%f", bal)})
+	writeJSON(c.Context, http.StatusOK, map[string]string{"balance": fmt.Sprintf("%f", bal)})
 	return nil
 }
 
@@ -92,14 +92,10 @@ func Instruments(c *server.Context) error {
 	return nil
 }
 
-// TODO(satvik): Handle error handling
 func Candles(c *server.Context) error {
 	symbol := c.Context.Param("symbol")
-	fmt.Println(symbol)
 
 	candles, err := trader.GetCandles(symbol, "D", time.Date(2019, time.January, 0, 0, 0, 0, 0, time.Now().Location()))
-
-	fmt.Println(candles)
 	if err != nil {
 		return err
 	}
