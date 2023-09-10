@@ -32,8 +32,8 @@ func CreateServer(db db.Database, t trader.Trader, port string) *Server {
 	config.AllowAllOrigins = true
 
 	r.Use(cors.New(config))
-	r.Static("/js/", "./templates/js/")
-	r.Static("/assets/", "./templates/assets/")
+	r.Static("/js", "./templates/js")
+	r.Static("/assets", "./templates/assets")
 
 	return &Server{
 		r:    r,

@@ -27,7 +27,6 @@ type TraderDataRequest struct {
 	Body        string
 }
 
-// TODO(satvik): Handle error handling
 // TODO(satvik): Take resolution as input
 func GetCandles(symbol string, resolution string, from time.Time) ([]Candlestick, error) {
 	currentTime := strconv.FormatInt(time.Now().Unix(), 10)
@@ -51,6 +50,10 @@ func GetCandles(symbol string, resolution string, from time.Time) ([]Candlestick
 	candlesRes := &TraderDataCandles{}
 	if err := json.Unmarshal([]byte(res), &candlesRes); err != nil {
 		return nil, err
+	}
+
+	if candlesRes.S == "no_data" {
+		return nil, fmt.Errorf("no data for ticker %s", symbol)
 	}
 
 	candles := []Candlestick{}
